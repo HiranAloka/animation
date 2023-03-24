@@ -1,33 +1,55 @@
-import React, {useState} from 'react';
-import {View, Animated, TouchableOpacity, Easing, Text} from 'react-native';
+import React, {useRef, useState} from 'react';
+import {
+  View,
+  Animated,
+  TouchableOpacity,
+  Easing,
+  Text,
+  Dimensions,
+} from 'react-native';
+import {transformer} from './metro.config';
 
 const App = () => {
-  const value = useState(new Animated.ValueXY({x: 0, y: 0}))[0];
+  let valueRight = useRef(new Animated.Value(0)).current;
 
+  const windowHeight = Dimensions.get('window').height;
+
+  const positionInterpolate = valueRight.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: [0, -windowHeight + 100, 0],
+    extrapolate: 'clamp',
+  });
   const moveBall = () => {
-    Animated.timing(value, {
-      toValue: {x: 100, y: 100},
-      easing: Easing.back(0),
-      duration: 2000,
-      useNativeDriver: false,
-    }).start();
+    Animated.sequence([
+      Animated.timing(valueRight, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(valueRight, {
+        toValue: 2,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {});
   };
 
   return (
-    <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-      <Animated.View style={value.getLayout()}>
-        <View
-          style={{
+    <View style={{flex: 1, justifyContent: 'flex-end', alignItems: 'center'}}>
+      <Animated.View
+        style={[
+          {
             width: 100,
             height: 100,
             borderRadius: 100 / 2,
             backgroundColor: 'red',
-          }}
-        />
-        <TouchableOpacity onPress={moveBall}>
-          <Text>Hey Click ME</Text>
-        </TouchableOpacity>
-      </Animated.View>
+            transform: [{translateY: positionInterpolate}],
+          },
+        ]}
+      />
+      <TouchableOpacity onPress={moveBall}>
+        <Text>Hey Click ME</Text>
+      </TouchableOpacity>
     </View>
   );
 };
