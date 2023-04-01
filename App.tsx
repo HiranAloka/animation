@@ -1,56 +1,101 @@
-import React, {useRef, useState} from 'react';
+import React, {useState, useRef, createRef} from 'react';
+import {View, Text, Image, Animated, Dimensions} from 'react-native';
 import {
-  View,
-  Animated,
-  TouchableOpacity,
-  Easing,
-  Text,
-  Dimensions,
-} from 'react-native';
-import {transformer} from './metro.config';
+  PanGestureHandler,
+  PinchGestureHandler,
+  State,
+} from 'react-native-gesture-handler';
 
 const App = () => {
-  let valueRight = useRef(new Animated.Value(0)).current;
+  const [panEnabled, setPanEnabled] = useState(false);
 
-  const windowHeight = Dimensions.get('window').height;
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
 
-  const positionInterpolate = valueRight.interpolate({
-    inputRange: [0, 1, 2],
-    outputRange: [0, -windowHeight + 100, 0],
-    extrapolate: 'clamp',
-  });
-  const moveBall = () => {
-    Animated.sequence([
-      Animated.timing(valueRight, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(valueRight, {
-        toValue: 2,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {});
+  const pinchRef = createRef();
+  const panRef = createRef();
+
+  const onPinchEvent = Animated.event(
+    [
+      {
+        nativeEvent: {scale},
+      },
+    ],
+    {useNativeDriver: true},
+  );
+
+  const onPanEvent = Animated.event(
+    [
+      {
+        nativeEvent: {
+          translationX: translateX,
+          translationY: translateY,
+        },
+      },
+    ],
+    {useNativeDriver: true},
+  );
+
+  const handlePinchStateChange = ({nativeEvent}) => {
+    // enabled pan only after pinch-zoom
+    if (nativeEvent.state === State.ACTIVE) {
+      setPanEnabled(true);
+    }
+
+    // when scale < 1, reset scale back to original (1)
+    const nScale = nativeEvent.scale;
+    if (nativeEvent.state === State.END) {
+      if (nScale < 1) {
+        Animated.spring(scale, {
+          toValue: 1,
+          useNativeDriver: true,
+        }).start();
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+
+        setPanEnabled(false);
+      }
+    }
   };
 
   return (
-    <View style={{flex: 1, justifyContent: 'flex-end', alignItems: 'center'}}>
-      <Animated.View
-        style={[
-          {
-            width: 100,
-            height: 100,
-            borderRadius: 100 / 2,
-            backgroundColor: 'red',
-            transform: [{translateY: positionInterpolate}],
-          },
-        ]}
-      />
-      <TouchableOpacity onPress={moveBall}>
-        <Text>Hey Click ME</Text>
-      </TouchableOpacity>
+    <View>
+      <PanGestureHandler
+        onGestureEvent={onPanEvent}
+        ref={panRef}
+        simultaneousHandlers={[pinchRef]}
+        enabled={panEnabled}
+        failOffsetX={[-1000, 1000]}
+        shouldCancelWhenOutside>
+        <Animated.View>
+          <PinchGestureHandler
+            ref={pinchRef}
+            onGestureEvent={onPinchEvent}
+            simultaneousHandlers={[panRef]}
+            onHandlerStateChange={handlePinchStateChange}>
+            <Animated.Image
+              source={{
+                uri: 'https://www.linkpicture.com/q/58bd4fc9ebfccc1f2de419529bbf1a12.jpg',
+              }}
+              style={{
+                width: '100%',
+                height: '100%',
+                transform: [{scale}, {translateX}, {translateY}],
+              }}
+              resizeMode="contain"
+            />
+          </PinchGestureHandler>
+        </Animated.View>
+      </PanGestureHandler>
     </View>
   );
 };
+
 export default App;
